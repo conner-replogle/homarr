@@ -165,11 +165,18 @@ export const configRouter = createTRPCRouter({
       };
     }),
   byName: publicProcedure
+    .meta({
+      openapi: {
+        method: 'GET',
+        path: '/config/byName'
+      }
+    })
     .input(
       z.object({
         name: configNameSchema,
       }),
     )
+    .output(z.custom<ConfigType>())
     .query(async ({ ctx, input }) => {
       if (!configExists(input.name)) {
         throw new TRPCError({

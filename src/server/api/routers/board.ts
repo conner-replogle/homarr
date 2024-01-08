@@ -11,29 +11,40 @@ import { adminProcedure, createTRPCRouter, protectedProcedure } from '../trpc';
 import { configNameSchema } from './config';
 
 export const boardRouter = createTRPCRouter({
-  all: protectedProcedure.query(async ({ ctx }) => {
-    const files = fs.readdirSync('./data/configs').filter((file) => file.endsWith('.json'));
+  all: protectedProcedure
+    .meta({ openapi: { method: 'GET', path: '/boards/all' } })
+    .input(z.undefined())
+    .output(z.array(z.object({
+      name: z.string(),
+      allowGuests: z.boolean(),
+      countApps: z.number().min(0),
+      countWidgets: z.number().min(0),
+      countCategories: z.number().min(0),
+      isDefaultForUser: z.boolean(),
+    })))
+    .query(async ({ ctx }) => {
+      const files = fs.readdirSync('./data/configs').filter((file) => file.endsWith('.json'));
 
-    const defaultBoard = await getDefaultBoardAsync(ctx.session.user.id, 'default');
+      const defaultBoard = await getDefaultBoardAsync(ctx.session.user.id, 'default');
 
-    return await Promise.all(
-      files.map(async (file) => {
-        const name = file.replace('.json', '');
-        const config = await getFrontendConfig(name);
+      return await Promise.all(
+        files.map(async (file) => {
+          const name = file.replace('.json', '');
+          const config = await getFrontendConfig(name);
 
-        const countApps = config.apps.length;
+          const countApps = config.apps.length;
 
-        return {
-          name: name,
-          allowGuests: config.settings.access.allowGuests,
-          countApps: countApps,
-          countWidgets: config.widgets.length,
-          countCategories: config.categories.length,
-          isDefaultForUser: name === defaultBoard,
-        };
-      })
-    );
-  }),
+          return {
+            name: name,
+            allowGuests: config.settings.access.allowGuests,
+            countApps: countApps,
+            countWidgets: config.widgets.length,
+            countCategories: config.categories.length,
+            isDefaultForUser: name === defaultBoard,
+          };
+        }),
+      );
+    }),
   addAppsForContainers: adminProcedure
     .input(
       z.object({
@@ -43,9 +54,9 @@ export const boardRouter = createTRPCRouter({
             name: z.string(),
             icon: z.string().optional(),
             port: z.number().optional(),
-          })
+          }),
         ),
-      })
+      }),
     )
     .mutation(async ({ input }) => {
       if (!(await configExists(input.boardName))) {
